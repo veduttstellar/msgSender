@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Schedule Chatwork Message</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <h1>Schedule a Message to Chatwork Group</h1>
+    <form id="scheduleForm">
+        <label for="attendance_in_time">Attendance In Time:</label><br>
+        <input type="text" id="attendance_in_time" name="attendance_in_time" class="datetimepicker"><br><br>
+
+        <label for="attendance_out_time">Attendance Out Time:</label><br>
+        <input type="text" id="attendance_out_time" name="attendance_out_time" class="datetimepicker"><br><br>
+
+        <button type="button" onclick="saveSchedule()">Save</button>
+        <button type="button" onclick="editSchedule()">Edit</button>
+    </form>
+    
+    <h2>Scheduled Messages</h2>
+    <ul id="scheduleList"></ul>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+
+        let schedules = [];
+        let editIndex = -1;
+        let attendanceInPicker;
+
+     // Initialize Flatpickr
+        attendanceInPicker = flatpickr("#attendance_in_time", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i:S",
+        });
+
+        flatpickr("#attendance_out_time", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i:S",
+        });
+
+
+        function saveSchedule() {
+
+            const attendance_in_time = document.getElementById('attendance_in_time').value;
+            const attendance_out_time = document.getElementById('attendance_out_time').value;
+
+            const attendance_in_message = "Attendance In Message";
+            const attendance_out_message = "Attendance Out Message";
+
+            const scheduleData = {
+                schedules: [
+                    { message: attendance_in_message, send_time: attendance_in_time },
+                    { message: attendance_out_message, send_time: attendance_out_time }
+                ]
+            };
+
+            // Send the schedule data to the server
+            fetch('/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(scheduleData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Schedule saved successfully');
+                    fetchSchedules();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+
+        function fetchSchedules() {
+            fetch('/get_schedules')
+                .then(response => response.json())
+                .then(data => {
+                    schedules = data;
+                    const scheduleList = document.getElementById('scheduleList');
+                    scheduleList.innerHTML = '';
+                    data.forEach((schedule, index) => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `Room ID: ${schedule.room_id}, Message: ${schedule.message}, Send Time: ${schedule.send_time}`;
+                           
+                            const deleteButton = document.createElement('button');
+                            deleteButton.textContent = 'Delete';
+                            deleteButton.onclick = () => {
+                                    console.log(`Deleting schedule with ID: ${schedule.id}`);
+                                    deleteSchedule(schedule.id);
+                    };
+                    listItem.appendChild(deleteButton);
+                    scheduleList.appendChild(listItem);
+                });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function loadScheduleForEdit(index) {
+            const schedule = schedules[index];
+            document.getElementById('attendance_in_time').value = schedule.send_time;
+            document.getElementById('attendance_out_time').value = schedule.send_time;
+            editIndex = index;
+            attendanceInPicker.open(); // Open the date picker for Attendance In Time
+        }
+
+        function deleteSchedule(id) {
+            // Send the delete request to the server
+            fetch(`/delete_schedule/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Schedule deleted successfully');
+                fetchSchedules();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        window.onload = fetchSchedules;
+    </script>
+</body>
+
+</html>
