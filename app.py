@@ -3,6 +3,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask_sqlalchemy import SQLAlchemy
 import requests
 import datetime
+from waitress import serve
+import logging
+from logging.handlers import RotatingFileHandler
+
 
 app = Flask(__name__)
 
@@ -103,9 +107,23 @@ def delete_schedule(id):
     else:
         return jsonify({"status": "Schedule not found"}), 404
 
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 if __name__ == "__main__":
     with app.app_context():
          db.create_all()
-    app.run(debug=True)
+    if not app.debug:
+        handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=1)
+        handler.setLevel(logging.INFO)
+        app.logger.addHandler(handler)
+    serve(app, host='0.0.0.0', port=8080)
+    # serve(app, host='0.0.0.0', port=8080)
+    # app.run(debug=True)
     #db.create_all()
